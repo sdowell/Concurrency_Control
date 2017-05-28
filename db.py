@@ -1,4 +1,12 @@
 import random
+import threading
+
+class Database_Item:
+	
+	def __init__(self, value):
+		self.value = value
+		self.r_lock = threading.Lock()
+		self.w_lock = threading.Lock()
 
 class Database:
 
@@ -6,7 +14,7 @@ class Database:
 		self.store = {}
 		self.size = size
 		for i in range(size):
-			self.store[i] = random.randint(0, 100)
+			self.store[i] = Database_Item(random.randint(0, 100))
 			
 	def get(self, key):
 		if key < 0 or key >= size:
