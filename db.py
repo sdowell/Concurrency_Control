@@ -54,10 +54,10 @@ class Database:
 	def get(self, key):
 		if key < 0 or key >= size:
 			return False	
-		return self.store[key]
+		return self.store[key].value
 		
 	def set(self, key, value):
 		if key < 0 or key >= size:
 			return False
-		self.store[key] = value
+		self.store[key].value = value
 		return True
