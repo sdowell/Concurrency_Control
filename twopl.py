@@ -22,12 +22,14 @@ class Transaction:
 
 class TwoPL:
 
-	def __init__(self):
+	def __init__(self, db):
+		self.db = db
 		return
 		
-	def initTransaction(self, T, db):
+	def initTransaction(self, T):
 		numOps = len(T.ops)
 		numLocks = 0
+		db = self.db
 		start = time.time()
 		# acquire locks
 		while numLocks != numOps:
