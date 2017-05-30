@@ -31,7 +31,12 @@ def send_message(a_socket, m_out = None):
 		
 		
 def handle_message(our_message, our_socket):
-
+	global protocol
+	if type(our_message) is message.TransactionRequest:
+		response = protocol.initTransaction(our_message)
+		return response
+	else:
+		pass
 	return
 
 if __name__ == "__main__":
