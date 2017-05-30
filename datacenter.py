@@ -1,7 +1,10 @@
 import socket
 import threading
 import socketserver
-
+import db
+import TwoPL
+my_db = None
+protocol = None
 class ThreadedTCPRequestHandler(socketserver.BaseRequestHandler):
 	
 	def handle(self):
@@ -30,3 +33,15 @@ def send_message(a_socket, m_out = None):
 def handle_message(our_message, our_socket):
 
 	return
+
+if __name__ == "__main__":
+	global my_db
+	global protocol
+	my_db = Database(1000)
+	protocol = TwoPL(my_db)
+	server = ThreadedTCPServer(server_addr, ThreadedTCPRequestHandler)
+	server_thread = threading.Thread(target = server.serve_forever)
+	server_thread.daemon = True
+	server_thread.start()
+	while run_server:
+		pass
