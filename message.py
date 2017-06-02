@@ -23,7 +23,7 @@ class TransactionRequest(Message):
 
 	def __init__(self, T):
 		self.transaction = T
-		super(RequestVoteResponse, self).__init__(self.serialize())
+		super(TransactionRequest, self).__init__(self.serialize())
 
 class TransactionResponse(Message):
 	def serialize(self):
@@ -31,4 +31,4 @@ class TransactionResponse(Message):
 
 	def __init__(self, T):
 		self.transaction = T
-		super(RequestVoteResponse, self).__init__(self.serialize())
+		super(TransactionResponse, self).__init__(self.serialize())
