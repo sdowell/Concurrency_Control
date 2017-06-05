@@ -5,10 +5,12 @@ import db
 import twopl
 import sys
 import message
+import transaction
 import time
 
 my_db = None
 protocol = None
+t_mgr = None
 
 class ThreadedTCPRequestHandler(socketserver.BaseRequestHandler):
 	
@@ -37,7 +39,9 @@ def send_message(a_socket, m_out = None):
 		
 def handle_message(our_message, our_socket):
 	global protocol
+	global t_mgr
 	if type(our_message) is message.TransactionRequest:
+		our_message.transaction.register(t_mgr)
 		response = message.TransactionResponse(protocol.initTransaction(our_message.transaction))
 		return response
 	else:
@@ -47,9 +51,11 @@ def handle_message(our_message, our_socket):
 if __name__ == "__main__":
 	global my_db
 	global protocol
+	global t_mgr
 	server_addr = ('localhost', int(sys.argv[1]))
 	my_db = db.Database(1000)
 	protocol = twopl.TwoPL(my_db)
+	t_mgr = transaction.TransactionManager
 	server = ThreadedTCPServer(server_addr, ThreadedTCPRequestHandler)
 	server_thread = threading.Thread(target = server.serve_forever)
 	server_thread.daemon = True
