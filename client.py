@@ -1,6 +1,7 @@
-import TwoPL
+import twopl
 import sys
-
+import socket
+import message
 def requestTransaction(server, T):
 	s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 	print("Attempting to connect to port: " + str(server))
@@ -20,17 +21,17 @@ def requestTransaction(server, T):
 
 def main():
 	print("Starting client...")
-	server = ('localhost', sys.argv[1])
-	t1 = TwoPL.Transaction([TwoPL.Operation('r',25)])
+	server = ('localhost', int(sys.argv[1]))
+	t1 = twopl.Transaction([twopl.Operation('r',25)])
 	r1 = requestTransaction(server, t1)
-	print("T1 response: " + r1.T.ops[0].value)
-	val = r1.ops[0].value
-	t2 = TwoPL.Transaction([TwoPL.Operation('w',25, val + 1)])
+	print("T1 response: " + str(r1.transaction.ops[0].value))
+	val = r1.transaction.ops[0].value
+	t2 = twopl.Transaction([twopl.Operation('w',25, val + 1)])
 	r2 = requestTransaction(server, t2)
-	print("T2 response: " + r2.T.ops[0].value)
-	t3 = TwoPL.Transaction([TwoPL.Operation('r',25)])
+	print("T2 response: " + str(r2.transaction.ops[0].value))
+	t3 = twopl.Transaction([twopl.Operation('r',25)])
 	r3 = requestTransaction(server, t3)
-	print("T3 response: " + r3.T.ops[0].value)
+	print("T3 response: " + str(r3.transaction.ops[0].value))
 	return
 
 

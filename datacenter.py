@@ -2,9 +2,14 @@ import socket
 import threading
 import socketserver
 import db
-import TwoPL
+import twopl
+import sys
+import message
+import time
+
 my_db = None
 protocol = None
+
 class ThreadedTCPRequestHandler(socketserver.BaseRequestHandler):
 	
 	def handle(self):
@@ -19,8 +24,8 @@ class ThreadedTCPServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
 		self.shutdown()
 
 def recieve_message(a_socket):
-	m_in = message.Message.deserialize(a_socket.recv(5))
-	time.sleep(delay)
+	m_in = message.Message.deserialize(a_socket.recv(2048))
+	#time.sleep(delay)
 	print("Recieved message of type: %s from %s" % (str(type(m_in)), str(a_socket.getpeername())))
 	return m_in
 
@@ -33,7 +38,7 @@ def send_message(a_socket, m_out = None):
 def handle_message(our_message, our_socket):
 	global protocol
 	if type(our_message) is message.TransactionRequest:
-		response = protocol.initTransaction(our_message)
+		response = message.TransactionResponse(protocol.initTransaction(our_message.transaction))
 		return response
 	else:
 		pass
@@ -42,11 +47,19 @@ def handle_message(our_message, our_socket):
 if __name__ == "__main__":
 	global my_db
 	global protocol
-	my_db = Database(1000)
-	protocol = TwoPL(my_db)
+	server_addr = ('localhost', int(sys.argv[1]))
+	my_db = db.Database(1000)
+	protocol = twopl.TwoPL(my_db)
 	server = ThreadedTCPServer(server_addr, ThreadedTCPRequestHandler)
 	server_thread = threading.Thread(target = server.serve_forever)
 	server_thread.daemon = True
 	server_thread.start()
+	
+	run_server = True
 	while run_server:
-		pass
+		try:
+			pass
+		except KeyboardInterrupt:
+			print("Caught keyboard interrupt, shutting down")
+			server.__exit__()
+			run_server = False	

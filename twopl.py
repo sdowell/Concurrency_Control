@@ -17,8 +17,8 @@ class Transaction:
 	def __init__(self, ops):
 		# list of operations for the transaction to perform
 		self.ops = ops
-		self.reads = t for t in ops if t.type == 'r'
-		self.writes = t for t in ops if t.type == 'w'
+		self.reads = [t for t in ops if t.type == 'r']
+		self.writes = [t for t in ops if t.type == 'w']
 
 class TwoPL:
 
@@ -72,4 +72,4 @@ class TwoPL:
 			elif op.type == 'w':
 				db.get(op.key).release_WLock()
 			
-		return
+		return T

@@ -52,12 +52,12 @@ class Database:
 			self.store[i] = Database_Item(random.randint(0, 100))
 			
 	def get(self, key):
-		if key < 0 or key >= size:
+		if key < 0 or key >= self.size:
 			return False	
-		return self.store[key].value
+		return self.store[key]
 		
 	def set(self, key, value):
-		if key < 0 or key >= size:
+		if key < 0 or key >= self.size:
 			return False
 		self.store[key].value = value
 		return True
