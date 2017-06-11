@@ -24,7 +24,7 @@ class TwoPL:
 					if op.hasLock:
 						numLocks += 1
 			# timeout, release locks and start again after delay
-			if time.time() - start > 1:
+			if time.time() - start > 0.1:
 				for op in T.ops:
 					if op.type == 'r' and op.hasLock:
 						db.get(op.key).release_RLock()
@@ -34,7 +34,9 @@ class TwoPL:
 						db.get(op.key).release_WLock()
 						op.hasLock = False
 						numLocks -= 1
-				time.sleep(0.01)
+				#time.sleep(0.01)
+				T.AbortNow = True
+				return T
 				start = time.time()
 		# perform operations
 		for op in T.ops:

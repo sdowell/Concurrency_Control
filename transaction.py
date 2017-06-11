@@ -1,5 +1,9 @@
 import threading
 
+STATE_ACTIVE = 0
+STATE_PREPARING = 1
+STATE_COMMITTED = 2
+STATE_ABORTED = 3
 
 class TransactionManager:
 
@@ -39,6 +43,44 @@ class Transaction:
 		self.ops = ops
 		self.reads = [t for t in ops if t.type == 'r']
 		self.writes = [t for t in ops if t.type == 'w']
-		
+		self.AbortNow = False
 	def register(self, mgr):
-		self.id = mgr.registerTransaction()
+		self.id = mgr.registerTransaction()	
+		
+class TwoPLTransaction(Transaction):
+
+	def __init__(self, ops):
+		super(TwoPLTransaction, self).__init__(ops)
+		
+	#def register(self, mgr):
+	#	self.id = mgr.registerTransaction()
+		
+		
+		
+class HekatonTransaction(Transaction):
+
+	def __init__(self, ops):
+		self.state = STATE_ACTIVE
+		self.CommitDepCounter = 0
+		#self.AbortNow = False
+		self.CommitDepSet = []
+		self.TS = None
+		super(HekatonTransaction, self).__init__(ops)
+	
+	#def register(self, mgr):
+	#	self.id = mgr.registerTransaction()
+		
+	def incrDepCounter(self):
+		self.CommitDepCounter += 1
+		
+	def decrDepCounter(self):
+		self.CommitDepCounter -= 1
+		
+	def registerDep(self, T):
+		if self.state == STATE_PREPARING:
+			self.CommitDepSet.append(T)
+		elif self.state == STATE_ABORTED:
+			T.AbortNow = True
+		elif self.state == STATE_COMMITTED:
+			T.decrDepCounter()
+		

@@ -1,34 +1,17 @@
-import transaction
-import sys
-import socket
-import message
-import random
-import argparse
+import hekaton
+import hekdb
 import queue
 import threading
+import transaction
+import random
 import time
-
+import twopl
+import argparse
+import db
 done = False
 aborted = 0
 total = 0
 
-def requestTransaction(server, T):
-	s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-	#print("Attempting to connect to port: " + str(server))
-	try:
-		s.connect(server)
-	except ConnectionRefusedError:
-		print("Could not connect to host")
-		return None
-	t_message = message.TransactionRequest(T)
-	s.send(t_message.data)
-	response = s.recv(4096)
-	#time.sleep(delay)
-	success = message.Message.deserialize(response)
-	s.close()
-	return success
-
-	
 def genROTrans(size, protocol):
 	ops = []
 	for i in range(4):
@@ -68,6 +51,7 @@ def getDone():
 	
 def producerFunc(send_q, num_trans, size, protocol, ratio):
 	#print("Starting producer")
+	mgr = transaction.TransactionManager()
 	perc = int(ratio * 100) 
 	for i in range(num_trans):
 		#print("Placing trans on q")
@@ -75,6 +59,7 @@ def producerFunc(send_q, num_trans, size, protocol, ratio):
 			t = genROTrans(size, protocol)
 		else:
 			t = genRWTrans(size, protocol)
+		t.register(mgr)
 		send_q.put(t)
 	#print("Done")
 	global done
@@ -92,21 +77,24 @@ def consumerFunc(send_q, server):
 				return
 			else:
 				continue
-		resp = requestTransaction(server, t)
-		if resp:
-			countTrans(resp.transaction)
-		else:
-			send_q.put(t)
+		resp = server.initTransaction(t)
+		countTrans(resp)
 		#receive_q.put(resp)
 	
-def benchmark(numworkers, size, ntrans, server, protocol, ratio):
+def benchmark(numworkers, size, ntrans, protocol, ratio):
+	if protocol == "hek":
+		my_db = hekdb.Database(size)
+		my_proto = hekaton.Hekaton(my_db)
+	else:
+		my_db = db.Database(size)
+		my_proto = twopl.TwoPL(my_db)
 	send_q = queue.Queue()
 	num_trans = ntrans
 	producer = threading.Thread(target=producerFunc, args = (send_q, num_trans, size, protocol, ratio))
 	producer.start()
 	consumers = []
 	for i in range(0, numworkers):
-		consumer = threading.Thread(target=consumerFunc, args = (send_q, server))
+		consumer = threading.Thread(target=consumerFunc, args = (send_q, my_proto))
 		consumers.append(consumer)
 		consumer.start()
 	producer.join()
@@ -117,27 +105,20 @@ def benchmark(numworkers, size, ntrans, server, protocol, ratio):
 	print("num_aborted: " + str(aborted))
 	print("Total: " + str(total))
 	
-	return
 def main():
+
 	print("Starting client...")
 	parser = argparse.ArgumentParser()
 	parser.add_argument("-n", "--numworkers", help="number of worker threads (default: 10)")
-	parser.add_argument("-p", "--port", help="port number for server")
 	parser.add_argument("-s", "--size", help="size of db")
 	parser.add_argument("-t", "--trans", help="number of transactions")
 	parser.add_argument("-c", "--conc", help="concurrency protocol (either 2pl or hek) (default: 2pl)")
 	parser.add_argument("-w", "--write", help="ratio of write to read transactions")
 	args = parser.parse_args()
-	
 	if args.numworkers:
 		numworkers = int(args.numworkers)
 	else:
 		numworkers = 10
-	if args.port:
-		port = int(args.port)
-	else:
-		print("Expected port number")
-		return
 	if args.size:
 		size = int(args.size)
 	else:
@@ -157,26 +138,13 @@ def main():
 	if args.write:
 		ratio = float(args.write)
 	else:
-		ratio = 0
-	server = ('localhost', int(port))
-	start = time.time()
-	benchmark(numworkers, size, num_t, server, protocol, ratio)
-	end = time.time()
-	print("Time elapsed: " + str(end - start))
-	return
+		ratio = 0	
 	
-	t1 = transaction.Transaction([transaction.Operation('r',25)])
-	r1 = requestTransaction(server, t1)
-	print("T1 response: " + str(r1.transaction.ops[0].value))
-	val = r1.transaction.ops[0].value
-	t2 = transaction.Transaction([transaction.Operation('w',25, val + 1)])
-	r2 = requestTransaction(server, t2)
-	print("T2 response: " + str(r2.transaction.ops[0].value))
-	t3 = transaction.Transaction([transaction.Operation('r',25)])
-	r3 = requestTransaction(server, t3)
-	print("T3 response: " + str(r3.transaction.ops[0].value))
+	start = time.time()
+	benchmark(numworkers, size, num_t, protocol, ratio)
+	end = time.time()
+	print("Time elapsed: " + str(end - start))	
 	return
-
 
 if __name__ == "__main__":
 	main()
