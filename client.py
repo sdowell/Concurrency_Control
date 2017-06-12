@@ -7,7 +7,7 @@ import argparse
 import queue
 import threading
 import time
-
+import pickle
 done = False
 aborted = 0
 total = 0
@@ -81,6 +81,13 @@ def producerFunc(send_q, num_trans, size, protocol, ratio):
 	done = True
 	return
 	
+def produceFromFile(send_q, bmark):
+	for t in bmark:
+		send_q.put(t)
+	global done
+	done = True
+	return
+	
 def consumerFunc(send_q, server):
 
 	while True:
@@ -98,13 +105,22 @@ def consumerFunc(send_q, server):
 		else:
 			send_q.put(t)
 		#receive_q.put(resp)
-	
-def benchmark(numworkers, size, ntrans, server, protocol, ratio):
+
+
+		
+def benchmark(numworkers, size, ntrans, server, protocol, ratio, bmark):
 	send_q = queue.Queue()
 	num_trans = ntrans
-	producer = threading.Thread(target=producerFunc, args = (send_q, num_trans, size, protocol, ratio))
+	
+	if bmark is None:
+		producer = threading.Thread(target=producerFunc, args = (send_q, num_trans, size, protocol, ratio))
+	else:
+		producer = threading.Thread(target=produceFromFile, args = (send_q, bmark))
+	#producer = threading.Thread(target=producerFunc, args = (send_q, num_trans, size, protocol, ratio))
 	producer.start()
 	consumers = []
+
+	
 	for i in range(0, numworkers):
 		consumer = threading.Thread(target=consumerFunc, args = (send_q, server))
 		consumers.append(consumer)
@@ -127,6 +143,7 @@ def main():
 	parser.add_argument("-t", "--trans", help="number of transactions")
 	parser.add_argument("-c", "--conc", help="concurrency protocol (either 2pl or hek) (default: 2pl)")
 	parser.add_argument("-w", "--write", help="ratio of write to read transactions")
+	parser.add_argument("-f", "--file", help="filename for pickle file")
 	args = parser.parse_args()
 	
 	if args.numworkers:
@@ -158,9 +175,16 @@ def main():
 		ratio = float(args.write)
 	else:
 		ratio = 0
+	if args.file:
+		fname = args.file
+		with open(fname, 'rb') as handle:
+			bmark = pickle.load(handle)
+	else:
+		fname = None
+		bmark = None		
 	server = ('localhost', int(port))
 	start = time.time()
-	benchmark(numworkers, size, num_t, server, protocol, ratio)
+	benchmark(numworkers, size, num_t, server, protocol, ratio, bmark)
 	end = time.time()
 	print("Time elapsed: " + str(end - start))
 	return
