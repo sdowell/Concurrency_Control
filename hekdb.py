@@ -109,14 +109,15 @@ class Database:
 					else:
 						return None
 				elif begin.state == transaction.STATE_PREPARING:
-					if begin.TS < time:
+					if begin.TS.time < time:
+						#speculatively read
 						T.CommitDepCounter += 1
 						begin.registerDep(T)
 						return value
 					else:
 						return None
 				elif begin.state == transaction.STATE_COMMITTED:
-					if begin.TS <= time:
+					if begin.TS.time <= time:
 						return value
 					else:
 						continue
@@ -130,7 +131,7 @@ class Database:
 					else:
 						return None
 				elif end.state == transaction.STATE_PREPARING:
-					if time < end.TS:
+					if time < end.TS.time:
 						# visible
 						return value
 					else:
@@ -139,7 +140,7 @@ class Database:
 						r.registerDep(T)
 						continue
 				elif end.state == transaction.STATE_COMMITTED:
-					if time < end.TS:
+					if time < end.TS.time:
 						return value
 					else:
 						continue
@@ -173,7 +174,7 @@ class Database:
 				break
 		
 		if v is None:
-			print("V is none")
+			#print("V is none")
 			return False
 		
 		new_record = Record(value, T, LogicalTime(TIME_INFINITY))
@@ -183,6 +184,8 @@ class Database:
 		return True
 		
 	def commit(self, T, keys, time, rlockset, wlockset):
+		for dep in T.CommitDepSet:
+			dep.CommitDepCounter -= 1
 		#print(type(time))
 		for key in keys:
 			#print(self.store[key])
@@ -211,6 +214,9 @@ class Database:
 		return
 		
 	def abort(self, T, keys, rlockset, wlockset):
+		for dep in T.CommitDepSet:
+			dep.AbortNow = True
+			dep.CommitDepCounter -= 1
 		for key in keys:
 			for r in self.store[key]:
 				if type(r.begin) is transaction.HekatonTransaction and r.begin.id == T.id:

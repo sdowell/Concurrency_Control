@@ -1,5 +1,6 @@
 import hekdb
 import transaction
+import time
 
 class Hekaton:
 
@@ -12,6 +13,7 @@ class Hekaton:
 		
 	def initTransaction(self, T):
 		
+		time_start = time.time()
 		
 		begin = self.clock.getTime()
 		T.state = transaction.STATE_ACTIVE
@@ -44,6 +46,10 @@ class Hekaton:
 		T.TS = end
 		T.state = transaction.STATE_PREPARING
 		while T.CommitDepCounter > 0 and not T.AbortNow:
+			time_end = time.time()
+			if time_end - time_start > .1:
+				T.AbortNow = True
+				break
 			pass
 		
 		# postprocessing

@@ -8,6 +8,7 @@ import time
 import twopl
 import argparse
 import db
+import pickle
 done = False
 aborted = 0
 total = 0
@@ -52,16 +53,23 @@ def getDone():
 def producerFunc(send_q, num_trans, size, protocol, ratio):
 	#print("Starting producer")
 	mgr = transaction.TransactionManager()
-	perc = int(ratio * 100) 
+	perc = int(ratio * 10) 
 	for i in range(num_trans):
 		#print("Placing trans on q")
-		if i % 100 >= perc:
+		if i % 10 >= perc:
 			t = genROTrans(size, protocol)
 		else:
 			t = genRWTrans(size, protocol)
 		t.register(mgr)
 		send_q.put(t)
 	#print("Done")
+	global done
+	done = True
+	return
+	
+def produceFromFile(send_q, bmark):
+	for t in bmark:
+		send_q.put(t)
 	global done
 	done = True
 	return
@@ -81,7 +89,7 @@ def consumerFunc(send_q, server):
 		countTrans(resp)
 		#receive_q.put(resp)
 	
-def benchmark(numworkers, size, ntrans, protocol, ratio):
+def benchmark(numworkers, size, ntrans, protocol, ratio, bmark):
 	if protocol == "hek":
 		my_db = hekdb.Database(size)
 		my_proto = hekaton.Hekaton(my_db)
@@ -90,7 +98,10 @@ def benchmark(numworkers, size, ntrans, protocol, ratio):
 		my_proto = twopl.TwoPL(my_db)
 	send_q = queue.Queue()
 	num_trans = ntrans
-	producer = threading.Thread(target=producerFunc, args = (send_q, num_trans, size, protocol, ratio))
+	if bmark is None:
+		producer = threading.Thread(target=producerFunc, args = (send_q, num_trans, size, protocol, ratio))
+	else:
+		producer = threading.Thread(target=produceFromFile, args = (send_q, bmark))
 	producer.start()
 	consumers = []
 	for i in range(0, numworkers):
@@ -114,6 +125,7 @@ def main():
 	parser.add_argument("-t", "--trans", help="number of transactions")
 	parser.add_argument("-c", "--conc", help="concurrency protocol (either 2pl or hek) (default: 2pl)")
 	parser.add_argument("-w", "--write", help="ratio of write to read transactions")
+	parser.add_argument("-f", "--file", help="benchmark file")
 	args = parser.parse_args()
 	if args.numworkers:
 		numworkers = int(args.numworkers)
@@ -139,9 +151,16 @@ def main():
 		ratio = float(args.write)
 	else:
 		ratio = 0	
+	if args.file:
+		fname = args.file
+		with open(fname, 'rb') as handle:
+			bmark = pickle.load(handle)
+	else:
+		fname = None
+		bmark = None
 	
 	start = time.time()
-	benchmark(numworkers, size, num_t, protocol, ratio)
+	benchmark(numworkers, size, num_t, protocol, ratio, bmark)
 	end = time.time()
 	print("Time elapsed: " + str(end - start))	
 	return
